@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+
+# Model files and downloads
+*.onnx
+*.pth
+*.pt
+*.h5
+*.pkl
+*.pickle
+models/
+.insightface/
+
+# Test outputs
+output/
+results/
+*.jpg.out
+*.png.out
+
+# Logs
+*.log
+logs/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
