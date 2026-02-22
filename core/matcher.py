@@ -6,12 +6,12 @@ class FaceMatcher:
 
     def __init__(self, dim=512):
 
-        self.index = faiss.IndexFlatL2(dim)
+        self.index = faiss.IndexFlatIP(dim)
 
         self.student_ids = []
 
     def add_embedding(self, embedding, student_id):
-
+        embedding = embedding / np.linalg.norm(embedding)
         embedding = np.array([embedding]).astype("float32")
 
         self.index.add(embedding)
@@ -19,7 +19,7 @@ class FaceMatcher:
         self.student_ids.append(student_id)
 
     def match(self, embedding):
-
+        embedding = embedding / np.linalg.norm(embedding)
         embedding = np.array([embedding]).astype("float32")
 
         distances, indices = self.index.search(embedding, k=1)

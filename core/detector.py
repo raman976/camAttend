@@ -11,20 +11,12 @@ class FaceDetector:
             keep_all=True,
             device=self.device
         )
-    def detect_faces(self,image):
+    def detect_faces(self, image):
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        boxes, probs = self.mtcnn.detect(rgb_image)
-
-        faces = []
+        boxes, probs, landmarks = self.mtcnn.detect(rgb_image, landmarks=True)
 
         if boxes is None:
-            return faces, []
+            return [], [], []
 
-        for box in boxes:
-            x1, y1, x2, y2 = map(int, box)
-
-            face = image[y1:y2, x1:x2]
-            faces.append(face)
-
-        return faces, boxes
+        return boxes, probs, landmarks
