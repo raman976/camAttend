@@ -1,32 +1,33 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# Virtual Environment
 venv/
 env/
 ENV/
 .venv
 
-# IDEs
+.env
+.env.local
+.env.*.local
+
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Jupyter Notebook
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
 .ipynb_checkpoints
 
-# Environment variables
-.env
-.env.local
-
-# Model files and downloads
 *.onnx
 *.pth
 *.pt
@@ -36,39 +37,30 @@ ENV/
 models/
 .insightface/
 
-# Test outputs
+*.db
+*.sqlite
+*.sqlite3
+
 output/
 results/
-*.jpg.out
-*.png.out
+exports/
+uploads/
+student_photos/
+attendance_exports/
 
-# Logs
 *.log
 logs/
 
-# Distribution / packaging
 build/
 dist/
 *.egg-info/
 .eggs/
 
-# pytest
 .pytest_cache/
 .coverage
 htmlcov/
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-
-
-
-*dataset/
-*tests/
+*.jpg.out
+*.png.out
+.tmp/
+temp/
