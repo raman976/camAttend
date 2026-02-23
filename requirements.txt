@@ -6,6 +6,7 @@ faiss-cpu==1.13.2
 filelock==3.24.3
 fsspec==2026.2.0
 idna==3.11
+insightface
 Jinja2==3.1.6
 MarkupSafe==3.0.3
 mpmath==1.3.0
@@ -17,6 +18,7 @@ pillow==10.2.0
 python-dotenv==1.0.0
 requests==2.32.5
 setuptools==82.0.0
+streamlit>=1.30.0
 supabase==2.10.0
 sympy==1.14.0
 torch==2.2.2
