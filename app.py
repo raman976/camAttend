@@ -381,6 +381,13 @@ def login_page():
             password = st.text_input("Password", type="password", key="reg_password", placeholder="Create a password (min 6 characters)")
             org_code = st.text_input("Organization Code", key="reg_org", placeholder="Enter or create organization code")
             
+            org_name = None
+            if org_code:
+                org = st.session_state.db.get_organization_by_code(org_code)
+                if not org:
+                    st.info("🎉 This organization code is available! Enter a name to create it.")
+                    org_name = st.text_input("Organization Name", key="new_org_name", placeholder="e.g., My School, Tech Corp")
+            
             st.markdown("<div style='padding: 1rem 0;'></div>", unsafe_allow_html=True)
             
             if st.button("Create Account", type="primary", use_container_width=True):
@@ -392,32 +399,34 @@ def login_page():
                     with st.spinner("Creating your account..."):
                         org = st.session_state.db.get_organization_by_code(org_code)
                         if not org:
-                            st.info("Organization not found. Creating new organization...")
-                            org_name = st.text_input("Organization Name", placeholder="Enter your organization name", key="new_org_name")
-                            if org_name:
+                            if not org_name:
+                                st.error("Please enter an organization name")
+                            else:
                                 org = st.session_state.db.create_organization(
                                     name=org_name,
                                     code=org_code,
                                     contact_email=email
                                 )
-                                st.success("Organization created!")
+                                if org:
+                                    st.success(f"Organization '{org_name}' created!")
+                                else:
+                                    st.error("Failed to create organization")
+                                    return
+                        
+                        if org:
+                            user = st.session_state.db.create_user(
+                                organization_id=org['id'],
+                                email=email,
+                                name=name,
+                                password=password,
+                                role='admin'
+                            )
+                            
+                            if user:
+                                st.success("Account created successfully! You can now login.")
+                                st.snow()
                             else:
-                                st.warning("Please enter organization name")
-                                return
-                        
-                        user = st.session_state.db.create_user(
-                            organization_id=org['id'],
-                            email=email,
-                            name=name,
-                            password=password,
-                            role='admin'
-                        )
-                        
-                        if user:
-                            st.success("Account created successfully! You can now login.")
-                            st.snow()
-                        else:
-                            st.error("Registration failed. Email might already exist.")
+                                st.error("Registration failed. Email might already exist.")
             
             st.markdown("<div style='padding: 1rem 0;'></div>", unsafe_allow_html=True)
             st.markdown("<p style='text-align: center; color: #a1a1a6;'>Already have an account? <span style='color: #0071e3; cursor: pointer;'>Login</span></p>", unsafe_allow_html=True)
