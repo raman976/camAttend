@@ -4,10 +4,12 @@ charset-normalizer==3.4.4
 Cython==3.0.10
 albumentations==2.0.8
 easydict==1.13
-facenet-pytorch==2.6.0
 faiss-cpu==1.13.2
 filelock==3.24.3
 fsspec==2026.2.0
+groq>=0.4.0
+langgraph>=0.2.0
+langchain-core>=0.3.0
 idna==3.11
 insightface==0.7.3
 Jinja2==3.1.6
@@ -32,8 +34,6 @@ setuptools>=70
 streamlit>=1.30.0
 supabase==2.10.0
 sympy==1.13.3
-torch==2.2.2
-torchvision==0.17.2
 tqdm==4.67.3
 typing_extensions==4.15.0
 urllib3==2.6.3
