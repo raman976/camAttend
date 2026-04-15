@@ -31,6 +31,7 @@ CREATE TABLE students (
     phone TEXT,
     enrollment_year INTEGER,
     department TEXT,
+    attendance_percentage FLOAT DEFAULT 0,
     face_embedding BYTEA NOT NULL,
     photo_url TEXT,
     is_active BOOLEAN DEFAULT true,
@@ -81,6 +82,25 @@ CREATE TABLE attendance_images (
     uploaded_by UUID REFERENCES users(id)
 );
 
+-- Agent decisions for explainable and reviewable attendance behavior
+CREATE TABLE agent_decisions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lecture_id UUID REFERENCES lectures(id) ON DELETE SET NULL,
+    student_id UUID REFERENCES students(id) ON DELETE SET NULL,
+    student_name TEXT,
+    face_confidence FLOAT,
+    agent_decision TEXT CHECK (agent_decision IN ('PRESENT', 'LATE', 'ABSENT', 'FLAGGED')),
+    agent_reasoning TEXT,
+    agent_type TEXT,
+    time_offset_minutes FLOAT,
+    requires_review BOOLEAN DEFAULT false,
+    admin_override TEXT,
+    override_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    override_reason TEXT,
+    status TEXT DEFAULT 'pending_review',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for better query performance
 CREATE INDEX idx_students_org ON students(organization_id);
 CREATE INDEX idx_students_active ON students(is_active);
@@ -90,6 +110,8 @@ CREATE INDEX idx_lectures_status ON lectures(status);
 CREATE INDEX idx_attendance_lecture ON attendance(lecture_id);
 CREATE INDEX idx_attendance_student ON attendance(student_id);
 CREATE INDEX idx_users_org ON users(organization_id);
+CREATE INDEX idx_agent_decisions_student ON agent_decisions(student_id);
+CREATE INDEX idx_agent_decisions_review ON agent_decisions(requires_review);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
@@ -98,6 +120,7 @@ ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lectures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_decisions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (basic examples - customize based on your auth setup)
 
