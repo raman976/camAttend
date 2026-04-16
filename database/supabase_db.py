@@ -266,3 +266,115 @@ class SupabaseDB:
             )
         
         return "\n".join(csv_lines)
+    
+    # Agent-specific methods
+    
+    def save_agent_decision(self, lecture_id: str, student_id: str, student_name: str,
+                           face_confidence: float, agent_decision: str, agent_reasoning: str,
+                           agent_type: str, time_offset_minutes: float = None,
+                           requires_review: bool = False, admin_override: str = None) -> Dict:
+        """Save agent's attendance decision"""
+        data = {
+            "lecture_id": lecture_id,
+            "student_id": student_id,
+            "student_name": student_name,
+            "face_confidence": face_confidence,
+            "agent_decision": agent_decision,
+            "agent_reasoning": agent_reasoning,
+            "agent_type": agent_type,
+            "time_offset_minutes": time_offset_minutes,
+            "requires_review": requires_review,
+            "admin_override": admin_override,
+            "status": "pending_review" if requires_review else "auto_marked"
+        }
+        
+        result = self.client.table("agent_decisions").insert(data).execute()
+        return result.data[0] if result.data else None
+    
+    def get_student_attendance_stats(self, student_id: str, organization_id: str,
+                                    limit_days: int = 30) -> Dict:
+        """Get student's attendance history and statistics for agent reasoning"""
+        history = self.get_student_attendance_history(student_id)
+        
+        if not history:
+            return {
+                'total_classes': 0,
+                'present': 0,
+                'late': 0,
+                'absent': 0,
+                'avg_attendance': 0.0,
+                'attendance_percentage': 0.0,
+                'previous_recognition_errors': 0,
+                'recent_pattern': []
+            }
+        
+        # Count by status
+        present_count = sum(1 for h in history if h.get('status') == 'present')
+        late_count = sum(1 for h in history if h.get('status') == 'late')
+        absent_count = sum(1 for h in history if h.get('status') == 'absent')
+        total_count = len(history)
+        
+        avg_attendance = (present_count + late_count) / total_count if total_count > 0 else 0
+        attendance_percentage = round(avg_attendance * 100.0, 2)
+        
+        # Get recent pattern (last 10 records)
+        recent_pattern = [h.get('status', 'unknown') for h in history[:10]]
+        
+        # Optional: read prior recognition errors from agent decisions if table exists.
+        previous_recognition_errors = 0
+        try:
+            errors_result = self.client.table("agent_decisions").select("id", count="exact").eq(
+                "student_id", student_id
+            ).eq("requires_review", True).execute()
+            previous_recognition_errors = int(errors_result.count or 0)
+        except Exception:
+            previous_recognition_errors = 0
+
+        # Optional: persist attendance percentage in students table if column exists.
+        try:
+            self.client.table("students").update({
+                "attendance_percentage": attendance_percentage
+            }).eq("id", student_id).execute()
+        except Exception:
+            pass
+
+        return {
+            'total_classes': total_count,
+            'present': present_count,
+            'late': late_count,
+            'absent': absent_count,
+            'avg_attendance': avg_attendance,
+            'attendance_percentage': attendance_percentage,
+            'previous_recognition_errors': previous_recognition_errors,
+            'recent_pattern': recent_pattern
+        }
+    
+    def get_flagged_decisions(self, lecture_id: str) -> List[Dict]:
+        """Get all decisions flagged for human review"""
+        result = self.client.table("agent_decisions").select("*").eq(
+            "lecture_id", lecture_id).eq("requires_review", True).execute()
+        return result.data if result.data else []
+    
+    def override_agent_decision(self, decision_id: str, override_status: str,
+                               override_by: str, override_reason: str = None) -> Dict:
+        """Override agent decision by human admin"""
+        data = {
+            "admin_override": override_status,
+            "override_by": override_by,
+            "override_reason": override_reason,
+            "status": "manual_override"
+        }
+        
+        result = self.client.table("agent_decisions").update(data).eq("id", decision_id).execute()
+        return result.data[0] if result.data else None
+    
+    def get_agent_performance_stats(self, organization_id: str) -> Dict:
+        """Analyze agent decision accuracy and patterns"""
+        # This would typically be done with an RPC function
+        # For now, return a simple structure
+        return {
+            'total_decisions': 0,
+            'flagged_count': 0,
+            'overridden_count': 0,
+            'accuracy': 0.0
+        }
