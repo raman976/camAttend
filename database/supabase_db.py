@@ -50,7 +50,19 @@ class SupabaseDB:
             "photo_url": photo_url
         }
         
-        result = self.client.table("students").insert(data).execute()
+        try:
+            result = self.client.table("students").insert(data).execute()
+            return result.data[0] if result.data else None
+        except APIError as e:
+            # Duplicate org+student_id should not crash the app; let UI show a friendly message.
+            if str(getattr(e, "message", "")).find("students_organization_id_student_id_key") != -1 or str(e).find("students_organization_id_student_id_key") != -1:
+                return None
+            raise
+
+    def get_student_by_org_and_student_id(self, organization_id: str, student_id: str) -> Dict:
+        result = self.client.table("students").select("*").eq(
+            "organization_id", organization_id
+        ).eq("student_id", student_id).limit(1).execute()
         return result.data[0] if result.data else None
     
     def get_student(self, student_uuid: str) -> Dict:

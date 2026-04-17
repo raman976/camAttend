@@ -682,6 +682,18 @@ def enroll_page():
                             if student_id_input
                             else name.replace(" ", "_").upper()
                         )
+                        existing_student = st.session_state.db.get_student_by_org_and_student_id(
+                            st.session_state.organization["id"],
+                            student_id,
+                        )
+                        if existing_student:
+                            bar.empty()
+                            st.error(
+                                f"Student ID '{student_id}' already exists in this organization. "
+                                "Use a different Student ID."
+                            )
+                            st.stop()
+
                         student = st.session_state.db.enroll_student(
                             organization_id=st.session_state.organization["id"],
                             student_id=student_id,
