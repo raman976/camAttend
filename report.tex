@@ -1,0 +1,150 @@
+% IEEE Double-Column Project Report
+% Compile: pdflatex -> bibtex -> pdflatex -> pdflatex
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[numbers]{natbib}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{listings}
+
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single}
+
+\begin{document}
+
+\title{AI-Based Classroom Attendance System Using Face Recognition and Agentic Decision Reasoning}
+
+\author{
+\IEEEauthorblockN{Raman Pandey}
+\IEEEauthorblockA{AI/ML Project}
+}
+
+\maketitle
+
+% ---------- ABSTRACT ----------
+\begin{abstract}
+This project builds an end-to-end classroom attendance system that combines face recognition with an agentic AI decision layer. A group classroom photo is processed through RetinaFace detection, InsightFace embedding, and FAISS similarity search to identify students. A graph-based decision agent then reasons about each detection using confidence, timing, image quality, and student history before producing an attendance decision. Borderline cases are sent to a Groq LLM for reasoning, and uncertain decisions are surfaced to the instructor through a human review queue. Attendance records and decision logs are stored in a Supabase cloud database.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Face Recognition, Agentic AI, LangGraph, Groq, Attendance Automation, Human-in-the-Loop.
+\end{IEEEkeywords}
+
+% ---------- I. INTRODUCTION ----------
+\section{Introduction}
+
+Taking attendance manually wastes class time and is easy to abuse with proxy attendance. Face recognition makes it possible to automate this by processing a group photograph and identifying who is present.
+
+Most basic implementations just apply a similarity threshold and call it done. The problem is that a simple threshold cannot handle cases like: what if the confidence is borderline? What if the student arrived 20 minutes late? What if the photo is blurry? This project addresses these situations by adding an intelligent decision layer on top of the face recognition pipeline.
+
+The system is built as a multi-tenant web application. An instructor starts a lecture, uploads a class photo, and the system detects all faces, identifies students, and marks attendance automatically. Uncertain decisions are flagged for the instructor to review and override.
+
+% ---------- II. RELATED WORK ----------
+\section{Related Work}
+
+ArcFace~\cite{deng2019arcface} introduced an angular margin loss for training face recognition models, producing highly discriminative embeddings. InsightFace packages pretrained ArcFace models for practical use. FAISS~\cite{johnson2019faiss} provides fast vector similarity search, used here to match face embeddings against enrolled students.
+
+LangGraph~\cite{langgraph2024} is a framework for building graph-structured AI agents where a typed shared state is passed through a sequence of nodes connected by conditional edges. This project uses it to implement a decision agent that evaluates each detected face through several reasoning steps before producing an attendance decision. Groq~\cite{groq2024} provides a low-latency API for LLM inference, used here to reason about ambiguous detections.
+
+% ---------- III. METHODOLOGY ----------
+\section{Methodology}
+
+\subsection{Face Detection}
+
+Faces are detected using RetinaFace, accessed through InsightFace's \texttt{FaceAnalysis} class with the \texttt{buffalo\_l} model pack at $640 \times 640$ resolution. For each detected face the model returns a bounding box, a confidence score, and five landmark points (eyes, nose, mouth corners).
+
+\subsection{Embedding Generation}
+
+Each detected face is aligned using the five landmarks with \texttt{face\_align.norm\_crop}, which applies an affine transform to produce a $112 \times 112$ normalised crop. This crop is passed through the ArcFace recognition model to produce a 512-dimensional embedding vector.
+
+\subsection{Face Matching}
+
+Enrolled student embeddings are stored in a FAISS \texttt{IndexFlatIP} index. All embeddings are L2-normalised so the inner product equals cosine similarity. A configurable threshold $\tau$ (default 0.5) determines whether a match is accepted. Faces that do not cross the threshold are treated as unknown.
+
+\subsection{Image Quality Score}
+
+Before the agent makes a decision, a quality score $q \in [0,1]$ is computed for each face crop:
+\[
+q = 0.45\,q_{\text{sharp}} + 0.35\,q_{\text{bright}} + 0.20\,q_{\text{size}}
+\]
+where sharpness is from the Laplacian variance of the grayscale crop, brightness is mean pixel intensity, and size is the face area as a fraction of the full image.
+
+\subsection{Agent Decision System}
+
+The main contribution of this project is a decision agent built using LangGraph. Instead of applying a single rule to every detection, the agent walks through a graph of nodes, each responsible for a specific concern. The graph is compiled from a typed \texttt{StateGraph} and invoked once per detected face.
+
+\textbf{Graph nodes, in order:}
+
+\begin{enumerate}
+  \item \textbf{preprocess} --- Normalises inputs and computes the time offset (minutes since class start).
+  \item \textbf{batch\_quality\_guard} --- If three or more faces are in the image and more than half are low-confidence, the whole batch is flagged for a retake.
+  \item \textbf{unknown\_freq\_guard} --- Tracks how often each unknown face has appeared in the current session using an embedding signature. If the same unknown face appears three or more times, the system suggests enrolling them.
+  \item \textbf{confidence\_gate} --- If the face match score is below 0.45, the decision is immediately escalated to the instructor.
+  \item \textbf{compute\_uncertainty} --- Calculates a weighted uncertainty score from seven factors: confidence, image quality, prior recognition errors, timing, attendance history, whether the face is unknown, and the crowd density.
+  \item \textbf{rule\_decision} --- Applies a deterministic timing policy: on time ($\leq$5 min) $\to$ PRESENT; late window (5--15 min) $\to$ LATE; borderline (15--30 min) $\to$ depends on student history; beyond 30 min $\to$ ABSENT.
+  \item \textbf{llm\_decision} --- For medium-confidence detections (0.65--0.85), the agent sends a structured prompt to Groq's \texttt{llama-3.1-8b-instant} model and parses the JSON response to get a decision and reasoning. Falls back to rule-based if Groq is unavailable.
+  \item \textbf{finalize} --- Records the observation in session memory and closes the trace.
+\end{enumerate}
+
+The output of the agent is one of four statuses (PRESENT, LATE, ABSENT, FLAGGED) and one of five actions: auto-mark present, soft flag for review, escalate to instructor, request retake, or suggest enrollment. Every decision also carries an explanation string and a step-by-step trace of which nodes ran.
+
+\subsection{Human-in-the-Loop Review}
+
+Flagged and soft-flagged decisions appear in a review queue below the results. The instructor selects an attendance status (Present, Late, or Absent) and confirms. The override is immediately written to the database and feeds back into the student's attendance statistics, which the agent uses in future sessions.
+
+The result list is sorted so the most certain detections appear first: auto-marked students at the top, then soft-flagged, then escalated, then absent.
+
+\subsection{Database}
+
+The system uses Supabase (PostgreSQL) with seven tables: organisations, users, students, lectures, attendance, attendance images, and agent decisions. Face embeddings are stored as base64-encoded binary. Every agent decision, including its reasoning and trace, is saved to the \texttt{agent\_decisions} table as an audit log.
+
+\subsection{Web Application}
+
+The interface is built with Streamlit and has three pages. The Dashboard shows enrolled students and current lecture status. The Enroll page accepts a student name and photo, runs the detection and embedding pipeline, and stores the result. The Recognize page manages lecture sessions, accepts group photos, runs the full pipeline, shows an annotated result image, and presents the review queue.
+
+% ---------- IV. RESULTS ----------
+\section{Results}
+
+The pipeline was tested on group photographs with one to eight faces. The system detected all clearly visible frontal faces and correctly matched enrolled students above the default threshold. Non-enrolled faces were correctly treated as unknown.
+
+All agent decision paths were verified manually. High-confidence, on-time detections were auto-marked without review. Medium-confidence detections triggered the Groq LLM and returned a JSON decision with reasoning. Very low confidence detections were escalated. A batch of images with many blurry faces triggered the retake action. An unknown face appearing three times in one session triggered the suggest-enroll action.
+
+Instructor overrides applied through the review queue were confirmed to persist in the database with the correct status and a note indicating manual override.
+
+% ---------- V. CONCLUSION ----------
+\section{Conclusion}
+
+This project built a working classroom attendance system that goes beyond basic face matching by adding an intelligent decision layer. The LangGraph agent handles edge cases that a simple threshold would get wrong---low image quality, borderline timing, students with poor attendance history---by routing them through specialised nodes and, where necessary, asking a language model for reasoning. Instructors remain in control through a review queue, and all decisions are auditable.
+
+Future work includes live camera input, parallel image processing, and automated class timetable integration.
+
+% ---------- REFERENCES ----------
+\bibliographystyle{IEEEtranN}
+\bibliography{references}
+
+% ---------- APPENDIX ----------
+\appendix
+\section{Project Structure}
+
+\begin{lstlisting}
+camAttend/
+  core/
+    detector.py        # RetinaFace detection
+    embedder.py        # ArcFace embedding
+    matcher.py         # FAISS cosine search
+    langgraph_agent.py # LangGraph decision agent
+  database/
+    supabase_db.py     # Database layer
+    supabase_schema.sql
+  app.py               # Streamlit web app
+  requirements.txt
+\end{lstlisting}
+
+Source code: \url{https://github.com/raman976/camAttend}
+
+\end{document}

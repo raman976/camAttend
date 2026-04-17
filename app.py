@@ -278,7 +278,7 @@ def login_page():
             password = st.text_input("Password", type="password", key="li_pass", placeholder="Password")
             org_code = st.text_input("Organization Code", key="li_org", placeholder="org-code")
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-            if st.button("Sign In", type="primary", use_container_width=True, key="li_btn"):
+            if st.button("Sign In", type="primary", width="stretch", key="li_btn"):
                 if not (email and password and org_code):
                     st.error("Please fill all fields.")
                 else:
@@ -312,13 +312,18 @@ def login_page():
                     org_name = st.text_input("Organization Name", key="r_org_name", placeholder="e.g., My College")
 
             st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-            if st.button("Create Account", type="primary", use_container_width=True, key="r_btn"):
+            if st.button("Create Account", type="primary", width="stretch", key="r_btn"):
                 if not (name and email and password and org_code):
                     st.error("Please fill all fields.")
                 elif len(password) < 6:
                     st.error("Password must be at least 6 characters.")
                 else:
                     with st.spinner("Creating account…"):
+                        existing_user = st.session_state.db.get_user_by_email(email)
+                        if existing_user:
+                            st.error("Email already registered. Please sign in instead.")
+                            st.stop()
+
                         org = st.session_state.db.get_organization_by_code(org_code)
                         if not org:
                             if not org_name:
@@ -581,10 +586,10 @@ def dashboard_page():
 
     with right:
         st.markdown("### Quick Actions")
-        if st.button("➕  Enroll Student", use_container_width=True):
+        if st.button("➕  Enroll Student", width="stretch"):
             st.session_state.current_page = "Enroll"
             st.rerun()
-        if st.button("🔍  Recognize Faces", use_container_width=True):
+        if st.button("🔍  Recognize Faces", width="stretch"):
             st.session_state.current_page = "Recognize"
             st.rerun()
 
@@ -644,7 +649,7 @@ def enroll_page():
         )
 
         st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-        if st.button("Enroll Student", type="primary", use_container_width=True):
+        if st.button("Enroll Student", type="primary", width="stretch"):
             if not uploaded_file:
                 st.error("Please upload a photo.")
             elif not name:
@@ -697,7 +702,7 @@ def enroll_page():
     with col_preview:
         if uploaded_file:
             st.markdown("### Preview")
-            st.image(uploaded_file, use_container_width=True)
+            st.image(uploaded_file, width="stretch")
             st.markdown(
                 """<div class="cam-card">
                     <div style="color:#f5f5f7;font-weight:600;margin-bottom:0.5rem">Tips for best results</div>
@@ -751,7 +756,7 @@ def recognize_page():
                 lecture_subject = st.text_input("Subject", key="lec_subj")
             with t3:
                 lecture_location = st.text_input("Location", key="lec_loc")
-            if st.button("▶ Start Lecture", type="primary", use_container_width=True):
+            if st.button("▶ Start Lecture", type="primary", width="stretch"):
                 started = start_lecture_session(
                     title=lecture_title.strip() or "Attendance Session",
                     subject=lecture_subject.strip() or None,
@@ -776,7 +781,7 @@ def recognize_page():
                 </div>""",
                 unsafe_allow_html=True,
             )
-            if st.button("⏹ End Lecture", use_container_width=True):
+            if st.button("⏹ End Lecture", width="stretch"):
                 summary = end_lecture_session()
                 if summary:
                     st.success("Lecture ended.")
@@ -819,7 +824,7 @@ def recognize_page():
         run_btn = st.button(
             "Recognize Faces",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=(uploaded_file is None or st.session_state.current_lecture is None),
         )
 
@@ -1097,7 +1102,7 @@ def recognize_page():
     with right_col:
         if st.session_state.result_image is not None:
             st.markdown("### Annotated Result")
-            st.image(st.session_state.result_image, use_container_width=True)
+            st.image(st.session_state.result_image, width="stretch")
             st.markdown(
                 """<div class="cam-card" style="font-size:0.8125rem;line-height:2">
                     <b style="color:#f5f5f7">Legend</b><br>
@@ -1111,7 +1116,7 @@ def recognize_page():
             )
         elif uploaded_file:
             st.markdown("### Preview")
-            st.image(uploaded_file, use_container_width=True)
+            st.image(uploaded_file, width="stretch")
             st.info("Click **Recognize Faces** to process this image.")
         else:
             st.markdown(
@@ -1210,7 +1215,7 @@ def recognize_page():
                         if st.button(
                             f"Mark as {ov}",
                             key=f"ov_btn_{item['queue_id']}",
-                            use_container_width=True,
+                            width="stretch",
                             type="primary",
                         ):
                             apply_review_action(item, "override", ov)
@@ -1289,7 +1294,7 @@ def main_app():
 
         st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
 
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪 Logout", width="stretch"):
             for k, v in _DEFAULTS.items():
                 st.session_state[k] = v
             st.session_state.db = None
@@ -1305,15 +1310,15 @@ def main_app():
     # Persistent top navigation for easy page switching from anywhere.
     nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1, 1, 1, 2])
     with nav_col1:
-        if st.button("Dashboard", use_container_width=True, type="primary" if st.session_state.current_page == "Dashboard" else "secondary", key="top_nav_dashboard"):
+        if st.button("Dashboard", width="stretch", type="primary" if st.session_state.current_page == "Dashboard" else "secondary", key="top_nav_dashboard"):
             st.session_state.current_page = "Dashboard"
             st.rerun()
     with nav_col2:
-        if st.button("Enroll", use_container_width=True, type="primary" if st.session_state.current_page == "Enroll" else "secondary", key="top_nav_enroll"):
+        if st.button("Enroll", width="stretch", type="primary" if st.session_state.current_page == "Enroll" else "secondary", key="top_nav_enroll"):
             st.session_state.current_page = "Enroll"
             st.rerun()
     with nav_col3:
-        if st.button("Recognize", use_container_width=True, type="primary" if st.session_state.current_page == "Recognize" else "secondary", key="top_nav_recognize"):
+        if st.button("Recognize", width="stretch", type="primary" if st.session_state.current_page == "Recognize" else "secondary", key="top_nav_recognize"):
             st.session_state.current_page = "Recognize"
             st.rerun()
     with nav_col4:

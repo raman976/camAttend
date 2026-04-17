@@ -3,6 +3,7 @@ from supabase import create_client, Client
 import numpy as np
 import bcrypt
 import base64
+from postgrest.exceptions import APIError
 from datetime import date, time
 from typing import List, Dict, Tuple
 
@@ -230,8 +231,14 @@ class SupabaseDB:
             "role": role
         }
         
-        result = self.client.table("users").insert(data).execute()
-        return result.data[0] if result.data else None
+        try:
+            result = self.client.table("users").insert(data).execute()
+            return result.data[0] if result.data else None
+        except APIError as e:
+            # Duplicate email is a common registration case; return None for graceful UI handling.
+            if str(getattr(e, "message", "")).find("users_email_key") != -1 or str(e).find("users_email_key") != -1:
+                return None
+            raise
     
     def get_user_by_email(self, email: str) -> Dict:
         result = self.client.table("users").select("*").eq("email", email).execute()
