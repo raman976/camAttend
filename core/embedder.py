@@ -5,8 +5,12 @@ from insightface.utils import face_align
 
 class FaceEmbedder:
     def __init__(self):
-        self.app = insightface.app.FaceAnalysis(name="buffalo_l")
-        self.app.prepare(ctx_id=0)
+        # Use CPU provider explicitly for cloud environments without CUDA.
+        self.app = insightface.app.FaceAnalysis(
+            name="buffalo_l",
+            providers=["CPUExecutionProvider"],
+        )
+        self.app.prepare(ctx_id=-1)
         self.rec_model = self.app.models['recognition']
 
     def get_embedding(self, image, bbox=None, landmark=None):
